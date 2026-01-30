@@ -49,6 +49,7 @@ Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
       output_type_(output_type),
       publish_frq_(frq),
       frame_id_(frame_id),
+      use_ros_time_(false),
       enable_lidar_bag_(lidar_bag),
       enable_imu_bag_(imu_bag) {
   publish_period_ns_ = kNsPerSecond / publish_frq_;
@@ -62,18 +63,24 @@ Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
 }
 #elif defined BUILDING_ROS2
 Lddc::Lddc(int format, int multi_topic, int data_src, int output_type,
-           double frq, std::string &frame_id)
+           double frq, std::string &frame_id, bool use_ros_time)
     : transfer_format_(format),
       use_multi_topic_(multi_topic),
       data_src_(data_src),
       output_type_(output_type),
       publish_frq_(frq),
-      frame_id_(frame_id) {
+      frame_id_(frame_id),
+      use_ros_time_(use_ros_time) {
   publish_period_ns_ = kNsPerSecond / publish_frq_;
   lds_ = nullptr;
 #if 0
   bag_ = nullptr;
 #endif
+  if (use_ros_time_) {
+    std::cout << "[Livox Driver] Using ROS time for timestamps (use_ros_time=true)" << std::endl;
+  } else {
+    std::cout << "[Livox Driver] Using sensor hardware time for timestamps (use_ros_time=false)" << std::endl;
+  }
 }
 #endif
 
@@ -313,7 +320,11 @@ void Lddc::InitPointcloud2Msg(const StoragePacket& pkg, PointCloud2& cloud, uint
   #ifdef BUILDING_ROS1
       cloud.header.stamp = ros::Time( timestamp / 1000000000.0);
   #elif defined BUILDING_ROS2
-      cloud.header.stamp = rclcpp::Time(timestamp);
+      if (use_ros_time_) {
+        cloud.header.stamp = rclcpp::Clock().now();
+      } else {
+        cloud.header.stamp = rclcpp::Time(timestamp);
+      }
   #endif
 
   std::vector<LivoxPointXyzrtlt> points;
@@ -369,7 +380,11 @@ void Lddc::InitCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg, uint8_t
 #ifdef BUILDING_ROS1
   livox_msg.header.stamp = ros::Time(timestamp / 1000000000.0);
 #elif defined BUILDING_ROS2
-  livox_msg.header.stamp = rclcpp::Time(timestamp);
+  if (use_ros_time_) {
+    livox_msg.header.stamp = rclcpp::Clock().now();
+  } else {
+    livox_msg.header.stamp = rclcpp::Time(timestamp);
+  }
 #endif
 
   livox_msg.point_num = pkg.points_num;
@@ -484,7 +499,11 @@ void Lddc::InitImuMsg(const ImuData& imu_data, ImuMsg& imu_msg, uint64_t& timest
 #ifdef BUILDING_ROS1
   imu_msg.header.stamp = ros::Time(timestamp / 1000000000.0);  // to ros time stamp
 #elif defined BUILDING_ROS2
-  imu_msg.header.stamp = rclcpp::Time(timestamp);  // to ros time stamp
+  if (use_ros_time_) {
+    imu_msg.header.stamp = rclcpp::Clock().now();
+  } else {
+    imu_msg.header.stamp = rclcpp::Time(timestamp);  // to ros time stamp
+  }
 #endif
 
   imu_msg.angular_velocity.x = imu_data.gyro_x;
