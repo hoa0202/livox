@@ -329,6 +329,10 @@ void Lddc::InitPointcloud2Msg(const StoragePacket& pkg, PointCloud2& cloud, uint
 
   std::vector<LivoxPointXyzrtlt> points;
   for (size_t i = 0; i < pkg.points_num; ++i) {
+    // Apply point cloud filter
+    if (!IsPointInRange(pkg.points[i].x, pkg.points[i].y, pkg.points[i].z)) {
+      continue;
+    }
     LivoxPointXyzrtlt point;
     point.x = pkg.points[i].x;
     point.y = pkg.points[i].y;
@@ -339,8 +343,10 @@ void Lddc::InitPointcloud2Msg(const StoragePacket& pkg, PointCloud2& cloud, uint
     point.timestamp = static_cast<double>(pkg.points[i].offset_time);
     points.push_back(std::move(point));
   }
-  cloud.data.resize(pkg.points_num * sizeof(LivoxPointXyzrtlt));
-  memcpy(cloud.data.data(), points.data(), pkg.points_num * sizeof(LivoxPointXyzrtlt));
+  cloud.width = points.size();
+  cloud.row_step = cloud.width * cloud.point_step;
+  cloud.data.resize(points.size() * sizeof(LivoxPointXyzrtlt));
+  memcpy(cloud.data.data(), points.data(), points.size() * sizeof(LivoxPointXyzrtlt));
 }
 
 void Lddc::PublishPointcloud2Data(const uint8_t index, const uint64_t timestamp, const PointCloud2& cloud) {
@@ -399,7 +405,12 @@ void Lddc::InitCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg, uint8_t
 void Lddc::FillPointsToCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg) {
   uint32_t points_num = pkg.points_num;
   const std::vector<PointXyzlt>& points = pkg.points;
+  uint32_t filtered_count = 0;
   for (uint32_t i = 0; i < points_num; ++i) {
+    // Apply point cloud filter
+    if (!IsPointInRange(points[i].x, points[i].y, points[i].z)) {
+      continue;
+    }
     CustomPoint point;
     point.x = points[i].x;
     point.y = points[i].y;
@@ -410,7 +421,9 @@ void Lddc::FillPointsToCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg)
     point.offset_time = static_cast<uint32_t>(points[i].offset_time - pkg.base_time);
 
     livox_msg.points.push_back(std::move(point));
+    filtered_count++;
   }
+  livox_msg.point_num = filtered_count;
 }
 
 void Lddc::PublishCustomPointData(const CustomMsg& livox_msg, const uint8_t index) {
@@ -458,6 +471,10 @@ void Lddc::FillPointsToPclMsg(const StoragePacket& pkg, PointCloud& pcl_msg) {
   uint32_t points_num = pkg.points_num;
   const std::vector<PointXyzlt>& points = pkg.points;
   for (uint32_t i = 0; i < points_num; ++i) {
+    // Apply point cloud filter
+    if (!IsPointInRange(points[i].x, points[i].y, points[i].z)) {
+      continue;
+    }
     pcl::PointXYZI point;
     point.x = points[i].x;
     point.y = points[i].y;
@@ -466,6 +483,7 @@ void Lddc::FillPointsToPclMsg(const StoragePacket& pkg, PointCloud& pcl_msg) {
 
     pcl_msg.points.push_back(std::move(point));
   }
+  pcl_msg.width = pcl_msg.points.size();
 #elif defined BUILDING_ROS2
   std::cout << "warning: pcl::PointCloud is not supported in ROS2, "
             << "please check code logic" 

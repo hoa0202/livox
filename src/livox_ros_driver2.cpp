@@ -139,6 +139,14 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   this->declare_parameter("cmdline_input_bd_code", "000000000000001");
   this->declare_parameter("lvx_file_path", "/home/livox/livox_test.lvx");
   this->declare_parameter("use_ros_time", false);
+  
+  // Point cloud filter parameters (angle in degrees)
+  this->declare_parameter("filter_azimuth_min", -180.0);   // horizontal angle min (deg)
+  this->declare_parameter("filter_azimuth_max", 180.0);    // horizontal angle max (deg)
+  this->declare_parameter("filter_elevation_min", -90.0);  // vertical angle min (deg)
+  this->declare_parameter("filter_elevation_max", 90.0);   // vertical angle max (deg)
+  this->declare_parameter("filter_dist_min", 0.0);         // min distance (m)
+  this->declare_parameter("filter_dist_max", 100.0);       // max distance (m)
 
   this->get_parameter("xfer_format", xfer_format);
   this->get_parameter("multi_topic", multi_topic);
@@ -147,6 +155,17 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   this->get_parameter("output_data_type", output_type);
   this->get_parameter("frame_id", frame_id);
   this->get_parameter("use_ros_time", use_ros_time);
+  
+  // Get filter parameters
+  double filter_azimuth_min, filter_azimuth_max;
+  double filter_elevation_min, filter_elevation_max;
+  double filter_dist_min, filter_dist_max;
+  this->get_parameter("filter_azimuth_min", filter_azimuth_min);
+  this->get_parameter("filter_azimuth_max", filter_azimuth_max);
+  this->get_parameter("filter_elevation_min", filter_elevation_min);
+  this->get_parameter("filter_elevation_max", filter_elevation_max);
+  this->get_parameter("filter_dist_min", filter_dist_min);
+  this->get_parameter("filter_dist_max", filter_dist_max);
 
   if (publish_freq > 100.0) {
     publish_freq = 100.0;
@@ -161,6 +180,15 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   /** Lidar data distribute control and lidar data source set */
   lddc_ptr_ = std::make_unique<Lddc>(xfer_format, multi_topic, data_src, output_type, publish_freq, frame_id, use_ros_time);
   lddc_ptr_->SetRosNode(this);
+  
+  // Set point cloud filter
+  lddc_ptr_->SetPointCloudFilter(filter_azimuth_min, filter_azimuth_max,
+                                  filter_elevation_min, filter_elevation_max,
+                                  filter_dist_min, filter_dist_max);
+  DRIVER_INFO(*this, "Point cloud filter: Azimuth[%.1f, %.1f] Elevation[%.1f, %.1f] Dist[%.2f, %.2f]",
+              filter_azimuth_min, filter_azimuth_max,
+              filter_elevation_min, filter_elevation_max,
+              filter_dist_min, filter_dist_max);
 
   if (data_src == kSourceRawLidar) {
     DRIVER_INFO(*this, "Data Source is raw lidar.");

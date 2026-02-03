@@ -15,6 +15,18 @@ lvx_file_path = '/home/livox/livox_test.lvx'
 cmdline_bd_code = 'livox0000000001'
 use_ros_time  = True  # True-Use ROS system time, False-Use sensor hardware time
 
+# Point cloud filter parameters
+# Azimuth (horizontal angle): -180 to 180 deg, 0=front(+X), 90=left(+Y), -90=right(-Y)
+# Elevation (vertical angle): -90 to 90 deg, 0=horizontal, positive=up
+# filter_azimuth_min   = -180.0  # horizontal angle min (deg)
+# filter_azimuth_max   = 180.0   # horizontal angle max (deg)
+filter_azimuth_min   = -120.0  # horizontal angle min (deg)
+filter_azimuth_max   = 120.0   # horizontal angle max (deg)
+filter_elevation_min = -90.0   # vertical angle min (deg)
+filter_elevation_max = 90.0    # vertical angle max (deg)
+filter_dist_min      = 0.0     # minimum distance (m)
+filter_dist_max      = 100.0   # maximum distance (m)
+
 
 cur_path = os.path.split(os.path.realpath(__file__))[0] + '/'
 cur_config_path = cur_path + '../config'
@@ -32,7 +44,14 @@ livox_ros2_params = [
     {"lvx_file_path": lvx_file_path},
     {"user_config_path": user_config_path},
     {"cmdline_input_bd_code": cmdline_bd_code},
-    {"use_ros_time": use_ros_time}
+    {"use_ros_time": use_ros_time},
+    # Point cloud filter parameters
+    {"filter_azimuth_min": filter_azimuth_min},
+    {"filter_azimuth_max": filter_azimuth_max},
+    {"filter_elevation_min": filter_elevation_min},
+    {"filter_elevation_max": filter_elevation_max},
+    {"filter_dist_min": filter_dist_min},
+    {"filter_dist_max": filter_dist_max}
 ]
 
 

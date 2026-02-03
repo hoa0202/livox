@@ -25,6 +25,7 @@
 #ifndef LIVOX_ROS_DRIVER2_LDDC_H_
 #define LIVOX_ROS_DRIVER2_LDDC_H_
 
+#include <cmath>
 #include "include/livox_ros_driver2.h"
 
 #include "driver_node.h"
@@ -92,6 +93,19 @@ class Lddc final {
 
   // void SetRosPub(ros::Publisher *pub) { global_pub_ = pub; };  // NOT USED
   void SetPublishFrq(uint32_t frq) { publish_frq_ = frq; }
+  
+  // Point cloud filter settings (angle in degrees)
+  void SetPointCloudFilter(double azimuth_min, double azimuth_max,
+                           double elevation_min, double elevation_max,
+                           double dist_min, double dist_max) {
+    filter_azimuth_min_ = azimuth_min;
+    filter_azimuth_max_ = azimuth_max;
+    filter_elevation_min_ = elevation_min;
+    filter_elevation_max_ = elevation_max;
+    filter_dist_min_ = dist_min;
+    filter_dist_max_ = dist_max;
+    filter_enabled_ = true;
+  }
 
  public:
   Lds *lds_;
@@ -157,6 +171,44 @@ class Lddc final {
 #endif
 
   livox_ros::DriverNode *cur_node_;
+  
+  // Point cloud filter parameters (angles in degrees)
+  bool filter_enabled_ = false;
+  double filter_azimuth_min_ = -180.0;   // horizontal angle min (deg)
+  double filter_azimuth_max_ = 180.0;    // horizontal angle max (deg)
+  double filter_elevation_min_ = -90.0;  // vertical angle min (deg)
+  double filter_elevation_max_ = 90.0;   // vertical angle max (deg)
+  double filter_dist_min_ = 0.0;
+  double filter_dist_max_ = 100.0;
+  
+  // Filter check function using spherical coordinates
+  bool IsPointInRange(double x, double y, double z) const {
+    if (!filter_enabled_) return true;
+    
+    double dist = std::sqrt(x*x + y*y + z*z);
+    if (dist < 0.001) return false;  // ignore zero distance points
+    
+    // Calculate angles (in degrees)
+    double azimuth = std::atan2(y, x) * 180.0 / M_PI;  // -180 to 180
+    double elevation = std::atan2(z, std::sqrt(x*x + y*y)) * 180.0 / M_PI;  // -90 to 90
+    
+    // Check distance
+    if (dist < filter_dist_min_ || dist > filter_dist_max_) return false;
+    
+    // Check elevation angle
+    if (elevation < filter_elevation_min_ || elevation > filter_elevation_max_) return false;
+    
+    // Check azimuth angle (handle wrap-around case)
+    if (filter_azimuth_min_ <= filter_azimuth_max_) {
+      // Normal case: e.g., -45 to 45
+      if (azimuth < filter_azimuth_min_ || azimuth > filter_azimuth_max_) return false;
+    } else {
+      // Wrap-around case: e.g., 135 to -135 (means 135~180 and -180~-135)
+      if (azimuth < filter_azimuth_min_ && azimuth > filter_azimuth_max_) return false;
+    }
+    
+    return true;
+  }
 };
 
 }  // namespace livox_ros
