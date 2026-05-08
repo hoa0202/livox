@@ -265,6 +265,8 @@ typedef struct {
   int32_t blind_spot_set;
   int8_t dual_emit_en;
   ExtParameter extrinsic_param;
+  /** Optional ROS frame_id for this lidar; empty = use node frame_id param */
+  char ros_frame_id[64];
   volatile uint32_t set_bits;
   volatile uint32_t get_bits;
 } UserLivoxLidarConfig;

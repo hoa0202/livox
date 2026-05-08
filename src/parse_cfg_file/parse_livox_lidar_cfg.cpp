@@ -23,6 +23,7 @@
 //
 
 #include "parse_livox_lidar_cfg.h"
+#include <cstring>
 #include <iostream>
 
 namespace livox_ros {
@@ -101,6 +102,13 @@ bool LivoxLidarConfigParser::ParseUserConfigs(const rapidjson::Document &doc,
         std::cout << "failed to parse extrinsic parameters, ip: "
                   << IpNumToString(user_config.handle) << std::endl;
       }
+    }
+    memset(user_config.ros_frame_id, 0, sizeof(user_config.ros_frame_id));
+    if (config.HasMember("frame_id") && config["frame_id"].IsString()) {
+      const char *fid = config["frame_id"].GetString();
+      size_t len = strnlen(fid, sizeof(user_config.ros_frame_id) - 1);
+      memcpy(user_config.ros_frame_id, fid, len);
+      user_config.ros_frame_id[len] = '\0';
     }
     user_config.set_bits = 0;
     user_config.get_bits = 0;

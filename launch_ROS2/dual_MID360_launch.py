@@ -8,7 +8,7 @@ multi_topic   = 1    # 1-One LiDAR one topic (required for dual lidar)
 data_src      = 0    # 0-lidar, others-Invalid data src
 publish_freq  = 10.0 # freqency of publish, 5.0, 10.0, 20.0, 50.0, etc.
 output_type   = 0
-frame_id      = 'livox_frame'  # base frame (will be changed by relay)
+frame_id      = 'livox_frame'  # fallback if lidar has no frame_id in JSON
 use_ros_time  = True
 
 # Point cloud filter parameters
@@ -41,77 +41,25 @@ livox_ros2_params = [
     {"filter_dist_max": filter_dist_max}
 ]
 
+# Remap IP-derived topics so only stable names appear on the graph.
+livox_topic_remaps = [
+    ('livox/lidar_192_168_0_100', 'livox/lidar_front'),
+    ('livox/lidar_192_168_0_109', 'livox/lidar_rear'),
+    ('livox/imu_192_168_0_100', 'livox/imu_front'),
+    ('livox/imu_192_168_0_109', 'livox/imu_rear'),
+]
+
 
 def generate_launch_description():
-    # Main livox driver (handles both lidars)
     livox_driver = Node(
         package='livox_ros_driver2',
         executable='livox_ros_driver2_node',
         name='livox_lidar_publisher',
         output='screen',
-        parameters=livox_ros2_params
-    )
-
-    # Relay: 192.168.0.100 -> lidar_front with frame_id change
-    relay_front = Node(
-        package='livox_ros_driver2',
-        executable='pointcloud_relay.py',
-        name='relay_lidar_front',
-        output='screen',
-        parameters=[
-            {'input_topic': '/livox/lidar_192_168_0_100'},
-            {'output_topic': '/livox/lidar_front'},
-            {'frame_id': 'livox_frame_front'},
-            {'msg_type': 'pointcloud'}
-        ]
-    )
-
-    # Relay: 192.168.0.109 -> lidar_rear with frame_id change
-    relay_rear = Node(
-        package='livox_ros_driver2',
-        executable='pointcloud_relay.py',
-        name='relay_lidar_rear',
-        output='screen',
-        parameters=[
-            {'input_topic': '/livox/lidar_192_168_0_109'},
-            {'output_topic': '/livox/lidar_rear'},
-            {'frame_id': 'livox_frame_rear'},
-            {'msg_type': 'pointcloud'}
-        ]
-    )
-
-    # Relay IMU: 192.168.0.100 -> imu_front
-    relay_imu_front = Node(
-        package='livox_ros_driver2',
-        executable='pointcloud_relay.py',
-        name='relay_imu_front',
-        output='screen',
-        parameters=[
-            {'input_topic': '/livox/imu_192_168_0_100'},
-            {'output_topic': '/livox/imu_front'},
-            {'frame_id': 'livox_frame_front'},
-            {'msg_type': 'imu'}
-        ]
-    )
-
-    # Relay IMU: 192.168.0.109 -> imu_rear
-    relay_imu_rear = Node(
-        package='livox_ros_driver2',
-        executable='pointcloud_relay.py',
-        name='relay_imu_rear',
-        output='screen',
-        parameters=[
-            {'input_topic': '/livox/imu_192_168_0_109'},
-            {'output_topic': '/livox/imu_rear'},
-            {'frame_id': 'livox_frame_rear'},
-            {'msg_type': 'imu'}
-        ]
+        parameters=livox_ros2_params,
+        remappings=livox_topic_remaps,
     )
 
     return LaunchDescription([
         livox_driver,
-        relay_front,
-        relay_rear,
-        relay_imu_front,
-        relay_imu_rear
     ])
